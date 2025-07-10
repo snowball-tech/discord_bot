@@ -97,6 +97,9 @@ async def channel_autocomplete(interaction: discord.Interaction, current: str):
     channels = []
     for guild in bot.guilds:
         for channel in guild.text_channels:
+            # Check if the user can view the channel
+            if not channel.permissions_for(interaction.user).view_channel:
+                continue
             if current.lower() in channel.name.lower():
                 label = f"#{channel.name} ({channel.category.name})" if channel.category else f"#{channel.name}"
                 channels.append(app_commands.Choice(name=label, value=str(channel.id)))
