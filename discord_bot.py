@@ -95,16 +95,27 @@ def log_error(error, user, channel, guild):
 # Autocomplete function for channel selection
 async def channel_autocomplete(interaction: discord.Interaction, current: str):
     channels = []
-    # Only use the guild where the interaction is happening
-    guild = interaction.guild
-    if not guild:
-        return []
-    for channel in guild.text_channels:
-        if not channel.permissions_for(interaction.user).view_channel:
+    # If in a server, only show channels from that server
+    if interaction.guild:
+        guilds = [interaction.guild]
+    else:
+        # In DM: show channels from all guilds where the user is a member
+        guilds = []
+        for guild in bot.guilds:
+            member = guild.get_member(interaction.user.id)
+            if member:
+                guilds.append(guild)
+    for guild in guilds:
+        member = guild.get_member(interaction.user.id)
+        if not member:
             continue
-        if current.lower() in channel.name.lower():
-            label = f"#{channel.name} ({channel.category.name})" if channel.category else f"#{channel.name}"
-            channels.append(app_commands.Choice(name=label, value=str(channel.id)))
+        for channel in guild.text_channels:
+            if not channel.permissions_for(member).view_channel:
+                continue
+            if not current or current.lower() in channel.name.lower():
+                # Show the guild name for clarity in DMs
+                label = f"#{channel.name} ({guild.name})"
+                channels.append(app_commands.Choice(name=label, value=str(channel.id)))
     return channels[:25]
 
 @bot.tree.command(name="summarize", description="Résume un canal Discord")
