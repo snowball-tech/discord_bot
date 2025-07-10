@@ -20,6 +20,7 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY)
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
+intents.members = True  # <--- This is important!
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -105,6 +106,7 @@ async def channel_autocomplete(interaction: discord.Interaction, current: str):
             member = guild.get_member(interaction.user.id)
             if member:
                 guilds.append(guild)
+    print(f"Autocomplete called by user {interaction.user} in guilds: {[g.name for g in guilds]}")
     for guild in guilds:
         member = guild.get_member(interaction.user.id)
         if not member:
@@ -116,6 +118,7 @@ async def channel_autocomplete(interaction: discord.Interaction, current: str):
                 # Show the guild name for clarity in DMs
                 label = f"#{channel.name} ({guild.name})"
                 channels.append(app_commands.Choice(name=label, value=str(channel.id)))
+    print(f"Channels found: {[c.name for c in channels]}")
     return channels[:25]
 
 @bot.tree.command(name="summarize", description="Résume un canal Discord")
