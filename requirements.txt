@@ -4,7 +4,6 @@ aiosignal==1.4.0
 annotated-types==0.7.0
 anyio==4.9.0
 attrs==25.3.0
-audioop-lts==0.2.1
 certifi==2025.6.15
 discord.py==2.5.2
 distro==1.9.0
