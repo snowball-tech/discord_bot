@@ -143,9 +143,13 @@ async def summarize(interaction: discord.Interaction, channel: str):
 
     # Fetch last 40 messages (excluding bots)
     messages = []
-    async for msg in channel_obj.history(limit=40):
-        if not msg.author.bot:
-            messages.append(f"[{msg.created_at.strftime('%Y-%m-%d %H:%M')}] {msg.author.display_name} : {msg.content}")
+    try:
+        async for msg in channel_obj.history(limit=40):
+            if not msg.author.bot:
+                messages.append(f"[{msg.created_at.strftime('%Y-%m-%d %H:%M')}] {msg.author.display_name} : {msg.content}")
+    except discord.errors.Forbidden:
+        await interaction.followup.send("Je n'ai pas accès à ce canal.", ephemeral=True)
+        return
 
     if not messages:
         await interaction.response.send_message("Aucun message récent à résumer.", ephemeral=True)
