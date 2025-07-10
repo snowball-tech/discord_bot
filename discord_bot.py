@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 import logging
 from typing import List, Optional
 import pprint
+from discord.ext import commands
+from discord import app_commands
+import datetime
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -18,7 +21,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
 
-discord_client = discord.Client(intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 def clean_channel_name(name):
     # Remove emojis and special symbols, keep only letters, numbers, dashes, and underscores
@@ -81,82 +84,65 @@ def summarize_messages(messages: List[str], channel_name: Optional[str] = None) 
         summary_message = f"**Résumé{' (last messages only)' if truncated else ''}:**\n{summary}"
     return summary_message
 
-async def handle_dm_summarize(message: discord.Message) -> None:
-    channel_name = message.content.split('#', 1)[1].strip()
-    found = False
-    for guild in discord_client.guilds:
-        matches = []
-        for ch in guild.text_channels:
-            if channel_name.lower() in clean_channel_name(ch.name):
-                matches.append(ch)
-        if len(matches) == 1:
-            channel = matches[0]
-            placeholder = await message.channel.send(f"Recherche et résumé des derniers messages de #{channel.name}...")
-            messages = []
-            try:
-                async for msg in channel.history(limit=40):
-                    if not msg.author.bot:
-                        messages.append(f"[{msg.created_at.strftime('%Y-%m-%d %H:%M')}] {msg.author.display_name} : {msg.content}")
-            except Exception as e:
-                logging.error(f"Error accessing messages in channel {channel.name}: {e}")
-                await placeholder.edit(content="Désolé, je n'ai pas pu accéder aux messages de ce channel. Veuillez réessayer plus tard.")
-                return
-            if not messages:
-                await placeholder.edit(content="Il n'y a pas de messages récents à résumer dans ce channel.")
-                return
-            logging.info(f"Summarizing {len(messages)} messages from channel {channel.name}")
-            summary_message = summarize_messages(messages, channel.name)
-            await placeholder.edit(content=summary_message)
-            found = True
-            break
-        elif len(matches) > 1:
-            logging.info(f"Plusieurs channels correspondent à '{channel_name}': {[ch.name for ch in matches]}")
-            await message.channel.send(
-                f"Plusieurs channels correspondent à '{channel_name}': " +
-                ", ".join(f"#{ch.name}" for ch in matches) +
-                ". Soyez plus précis."
-            )
-            found = True
-            break
-    if not found:
-        logging.info(f"Pas de channel correspondant à '{channel_name}'")
-        await message.channel.send(f"Pas de channel correspondant à '{channel_name}'.")
+def log_usage(user, channel, guild):
+    with open("usage.log", "a") as f:
+        f.write(f"{datetime.datetime.now().isoformat()} | user={user} | channel={channel} | guild={guild}\n")
 
-async def handle_channel_summarize(message: discord.Message) -> None:
-    placeholder = await message.channel.send("Recherche et résumé des derniers messages...")
+def log_error(error, user, channel, guild):
+    with open("errors.log", "a") as f:
+        f.write(f"{datetime.datetime.now().isoformat()} | error={error} | user={user} | channel={channel} | guild={guild}\n")
+
+# Autocomplete function for channel selection
+async def channel_autocomplete(interaction: discord.Interaction, current: str):
+    channels = []
+    for guild in bot.guilds:
+        for channel in guild.text_channels:
+            if current.lower() in channel.name.lower():
+                label = f"#{channel.name} ({channel.category.name})" if channel.category else f"#{channel.name}"
+                channels.append(app_commands.Choice(name=label, value=str(channel.id)))
+    return channels[:25]
+
+@bot.tree.command(name="summarize", description="Résume un canal Discord")
+@app_commands.describe(channel="Choisissez le canal à résumer")
+@app_commands.autocomplete(channel=channel_autocomplete)
+async def summarize(interaction: discord.Interaction, channel: str):
+    await interaction.response.defer(thinking=True)  # <-- This tells Discord you're working
+    # Find the channel by ID
+    channel_obj = None
+    for guild in bot.guilds:
+        ch = discord.utils.get(guild.text_channels, id=int(channel))
+        if ch:
+            channel_obj = ch
+            break
+    if not channel_obj:
+        await interaction.response.send_message("Canal introuvable.", ephemeral=True)
+        return
+
+    user = interaction.user.display_name
+    guild = interaction.guild.name if interaction.guild else "DM"
+    log_usage(user, channel_obj.name, guild)
+
+    # Fetch last 40 messages (excluding bots)
     messages = []
-    try:
-        async for msg in message.channel.history(limit=40):
-            if not msg.author.bot:
-                messages.append(f"[{msg.created_at.strftime('%Y-%m-%d %H:%M')}] {msg.author.display_name} : {msg.content}")
-    except Exception as e:
-        logging.error(f"Error accessing messages in channel {message.channel.name}: {e}")
-        await placeholder.edit(content="Désolé, je n'ai pas pu accéder aux messages de ce channel. Veuillez réessayer plus tard.")
-        return
+    async for msg in channel_obj.history(limit=40):
+        if not msg.author.bot:
+            messages.append(f"[{msg.created_at.strftime('%Y-%m-%d %H:%M')}] {msg.author.display_name} : {msg.content}")
+
     if not messages:
-        await placeholder.edit(content="Il n'y a pas de messages récents à résumer dans ce channel.")
+        await interaction.response.send_message("Aucun message récent à résumer.", ephemeral=True)
         return
-    if isinstance(message.channel, discord.DMChannel):
-        channel_name = 'DM'
-    else:
-        channel_name = message.channel.name
-    logging.info(f"Résumé des {len(messages)} messages de {channel_name}")
-    summary_message = summarize_messages(messages)
-    await placeholder.edit(content=summary_message)
 
-@discord_client.event
-async def on_ready() -> None:
-    logging.info(f'Logged in as {discord_client.user}')
+    summary = summarize_messages(messages, channel_obj.name)
+    await interaction.followup.send(summary, ephemeral=False)
 
-@discord_client.event
-async def on_message(message: discord.Message) -> None:
-    if message.author == discord_client.user:
-        return
-    # --- DM: Summarize a specific channel with fuzzy search ---
-    if message.guild is None and message.content.startswith('!summarize #'):
-        await handle_dm_summarize(message)
-    # --- In-channel: Summarize the current channel ---
-    elif message.guild is not None and message.content.startswith('!summarize'):
-        await handle_channel_summarize(message)
+@bot.event
+async def on_ready():
+    logging.info(f'Logged in as {bot.user}')
+    logging.info('==== Slash command version running! ====')
+    try:
+        synced = await bot.tree.sync()
+        logging.info(f"Slash commands synchronisées: {len(synced)}")
+    except Exception as e:
+        logging.error(f"Erreur de sync: {e}")
 
-discord_client.run(DISCORD_TOKEN)
+bot.run(DISCORD_TOKEN)
