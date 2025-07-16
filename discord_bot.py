@@ -9,16 +9,12 @@ import pprint
 from discord.ext import commands
 from discord import app_commands
 import datetime
-from supabase import create_client, Client
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
-SUPABASE_URL = os.environ["SUPABASE_URL"]
-SUPABASE_KEY = os.environ["SUPABASE_KEY"]
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 intents = discord.Intents.default()
@@ -27,10 +23,6 @@ intents.guilds = True
 intents.members = True  # <--- This is important!
 
 bot = commands.Bot(command_prefix="!", intents=intents)
-
-SUPABASE_URL = os.environ["SUPABASE_URL"]
-SUPABASE_KEY = os.environ["SUPABASE_KEY"]
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def clean_channel_name(name):
     # Remove emojis and special symbols, keep only letters, numbers, dashes, and underscores
@@ -101,19 +93,6 @@ def log_error(error, user, channel, guild):
     with open("errors.log", "a") as f:
         f.write(f"{datetime.datetime.now().isoformat()} | error={error} | user={user} | channel={channel} | guild={guild}\n")
 
-def log_usage_to_supabase(user, user_id, channel, channel_id):
-    data = {
-        "timestamp": datetime.datetime.now().isoformat(),
-        "user_id": str(user_id),
-        "user_name": user,
-        "channel_id": str(channel_id),
-        "channel_name": channel,
-    }
-    try:
-        supabase.table("bot_usage").insert(data).execute()
-    except Exception as e:
-        logging.error(f"Failed to log usage to Supabase: {e}")
-
 # Autocomplete function for channel selection
 async def channel_autocomplete(interaction: discord.Interaction, current: str):
     channels = []
@@ -161,7 +140,6 @@ async def summarize(interaction: discord.Interaction, channel: str):
     user = interaction.user.display_name
     user_id = interaction.user.id
     # log_usage(user, channel_obj.name, guild)  # (optional: remove this if you only want Supabase logging)
-    log_usage_to_supabase(user, user_id, channel_obj.name, channel_obj.id)
 
     # Fetch last 40 messages (excluding bots)
     messages = []
