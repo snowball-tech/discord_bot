@@ -189,4 +189,19 @@ async def on_ready():
     except Exception as e:
         logging.error(f"Erreur de sync: {e}")
 
+@bot.event
+async def on_message(message):
+    # Only track if it's a DM and from a user (not a bot)
+    if isinstance(message.channel, discord.DMChannel) and not message.author.bot:
+        posthog.capture(
+            distinct_id=str(message.author.id),
+            event='bot_started',
+            properties={
+                "user": message.author.display_name,
+                "user_id": str(message.author.id)
+            }
+        )
+    # Don't forget to process commands if using commands extension
+    await bot.process_commands(message)
+
 bot.run(DISCORD_TOKEN)
