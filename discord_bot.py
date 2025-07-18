@@ -9,11 +9,21 @@ import pprint
 from discord.ext import commands
 from discord import app_commands
 import datetime
+from posthog import Posthog
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+POSTHOG_API_KEY = os.environ["POSTHOG_API_KEY"]
+POSTHOG_HOST = os.environ["POSTHOG_HOST"]
+
+posthog = Posthog(
+    project_api_key=POSTHOG_API_KEY,
+    host=POSTHOG_HOST
+)
+
+posthog.capture(distinct_id='test-id', event='test-event')
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -125,6 +135,17 @@ async def channel_autocomplete(interaction: discord.Interaction, current: str):
 @app_commands.describe(channel="Choisissez le canal à résumer")
 @app_commands.autocomplete(channel=channel_autocomplete)
 async def summarize(interaction: discord.Interaction, channel: str):
+    # Track usage in PostHog
+    posthog.capture(
+        distinct_id=str(interaction.user.id),
+        event='summarize_command_used',
+        properties={
+            "channel": channel,
+            "user": interaction.user.display_name,
+            "guild_id": str(interaction.guild.id) if interaction.guild else None,
+            "guild_name": interaction.guild.name if interaction.guild else None
+        }
+    )
     await interaction.response.defer(thinking=True)  # <-- This tells Discord you're working
     # Find the channel by ID
     channel_obj = None
