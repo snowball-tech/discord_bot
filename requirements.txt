@@ -15,6 +15,7 @@ idna==3.10
 jiter==0.10.0
 multidict==6.6.3
 openai==1.93.0
+posthog
 propcache==0.3.2
 pydantic==2.11.7
 pydantic_core==2.33.2
