@@ -135,6 +135,17 @@ async def channel_autocomplete(interaction: discord.Interaction, current: str):
 @app_commands.describe(channel="Choisissez le canal à résumer")
 @app_commands.autocomplete(channel=channel_autocomplete)
 async def summarize(interaction: discord.Interaction, channel: str):
+    # Track usage in PostHog
+    posthog.capture(
+        distinct_id=str(interaction.user.id),
+        event='summarize_command_used',
+        properties={
+            "channel": channel,
+            "user": interaction.user.display_name,
+            "guild_id": str(interaction.guild.id) if interaction.guild else None,
+            "guild_name": interaction.guild.name if interaction.guild else None
+        }
+    )
     await interaction.response.defer(thinking=True)  # <-- This tells Discord you're working
     # Find the channel by ID
     channel_obj = None
