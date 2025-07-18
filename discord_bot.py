@@ -9,11 +9,21 @@ import pprint
 from discord.ext import commands
 from discord import app_commands
 import datetime
+from posthog import Posthog
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+POSTHOG_API_KEY = os.environ["POSTHOG_API_KEY"]
+POSTHOG_HOST = os.environ["POSTHOG_HOST"]
+
+posthog = Posthog(
+    project_api_key=POSTHOG_API_KEY,
+    host=POSTHOG_HOST
+)
+
+posthog.capture(distinct_id='test-id', event='test-event')
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
