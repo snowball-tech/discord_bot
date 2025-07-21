@@ -18,7 +18,7 @@ openai==1.93.0
 posthog
 propcache==0.3.2
 pydantic==2.11.7
-pydantic_core==2.33.2
+pydantic_core==2.35.2
 python-dotenv==1.1.1
 sniffio==1.3.1
 tqdm==4.67.1
