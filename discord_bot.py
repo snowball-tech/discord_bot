@@ -10,6 +10,21 @@ from discord.ext import commands
 from discord import app_commands
 import datetime
 from posthog import Posthog
+from threading import Thread
+from flask import Flask
+
+def run_healthcheck():
+    app = Flask(__name__)
+
+    @app.route('/health')
+    def health():
+        return "ok", 200
+
+    port = int(os.environ.get("PORT", 8080))  # Use Railway's assigned port, fallback to 8080 for local dev
+    app.run(host="0.0.0.0", port=port)
+
+# Start healthcheck server in a separate thread
+Thread(target=run_healthcheck, daemon=True).start()
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
