@@ -5,7 +5,7 @@ annotated-types==0.7.0
 anyio==4.9.0
 attrs==25.3.0
 certifi==2025.6.15
-discord.py==2.5.2
+discord.py==2.7.1
 distro==1.9.0
 flask
 frozenlist==1.7.0
