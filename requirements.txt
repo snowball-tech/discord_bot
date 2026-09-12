@@ -14,7 +14,7 @@ httpcore==1.0.9
 httpx==0.28.1
 idna==3.10
 jiter==0.10.0
-multidict==6.6.3
+multidict==6.8.0
 openai==1.93.0
 posthog
 propcache==0.3.2
